@@ -1,0 +1,87 @@
+package algorithm;
+
+import org.json.JSONObject;
+import org.json.JSONArray;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
+
+public class Secretsharing {
+
+    public static void main(String[] args) {
+        String filePath = "input.json"; // Path to the JSON input file
+
+        try {
+            // Read and parse the JSON file
+            String content = new String(Files.readAllBytes(Paths.get(filePath)));
+            JSONObject jsonObject = new JSONObject(content);
+
+            // Get values for 'n' and 'k' from the JSON
+            JSONObject keys = jsonObject.getJSONObject("keys");
+            int n = keys.getInt("n");
+            int k = keys.getInt("k");
+
+            // Map to store decoded roots (x, y)
+            Map<Integer, BigInteger> roots = new HashMap<>();
+
+            // Decode each root's y-value from its base
+            for (String key : jsonObject.keySet()) {
+                if (key.equals("keys")) continue;
+
+                int x = Integer.parseInt(key);
+                JSONObject rootData = jsonObject.getJSONObject(key);
+                String baseStr = rootData.getString("base");
+                String valueStr = rootData.getString("value");
+
+                int base = Integer.parseInt(baseStr);
+                BigInteger y = new BigInteger(valueStr, base); // Decode y-value
+
+                roots.put(x, y); // Store the decoded (x, y) pair
+            }
+
+            // Calculate the constant term 'c' using Lagrange interpolation
+            BigInteger constantTerm = calculateConstantTerm(roots, k);
+            System.out.println("Constant term (c): " + constantTerm);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Calculate the constant term using Lagrange Interpolation.
+     *
+     * @param roots Map of decoded roots (x, y).
+     * @param k     Minimum number of roots required.
+     * @return The constant term of the polynomial.
+     */
+    public static BigInteger calculateConstantTerm(Map<Integer, BigInteger> roots, int k) {
+        BigInteger result = BigInteger.ZERO;
+
+        // Lagrange interpolation to find f(0), which is the constant term c
+        for (Map.Entry<Integer, BigInteger> entry : roots.entrySet()) {
+            int xi = entry.getKey();
+            BigInteger yi = entry.getValue();
+
+            // Calculate the Lagrange basis polynomial li(0)
+            BigInteger li = BigInteger.ONE;
+            for (Map.Entry<Integer, BigInteger> otherEntry : roots.entrySet()) {
+                int xj = otherEntry.getKey();
+                if (xi != xj) {
+                    li = li.multiply(BigInteger.valueOf(-xj))
+                            .divide(BigInteger.valueOf(xi - xj));
+                }
+            }
+
+            // Add the term yi * li to the result
+            result = result.add(yi.multiply(li));
+        }
+
+        return result;
+    }
+}
